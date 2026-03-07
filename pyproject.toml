@@ -1,0 +1,21 @@
+[project]
+name = "ai-agent-tutorials"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "kamleshcode",email = "kamleshit21@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "langchain-openai (>=1.1.10,<2.0.0)",
+    "langgraph (>=1.0.10,<2.0.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "langchain-mcp-adapters (>=0.2.1,<0.3.0)",
+    "langchain-groq (>=1.1.2,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
