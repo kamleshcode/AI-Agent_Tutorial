@@ -11,7 +11,7 @@
 
 ```bash
                     Vector Stores
-    Document Loader        |        Prompts
+    Document Loader       |        Prompts
                   \       |       /
                    \      |      /
                       LangChain
@@ -24,24 +24,12 @@
 - LangChain is like a wrapper on top of openai API.
 Example:
 ```python
-from langchain_openai import OpenAI
-# Create LLM client
-llm = OpenAI()
-# Zero-shot prompt
+from langchain_openai import ChatOpenAI
+llm = ChatOpenAI(model="gpt-4o-mini")
 prompt = "Can you tell me the total number of countries in Asia?"
-print(llm.predict(prompt).strip())
+response = llm.invoke(prompt)
+print(response.content)
 ```
-- In LangChain, you can get output from an LLM in two ways:
-  1. ```predict``` – Use for simple, single-string prompts.
-  ```python
-  response = llm.predict("What is the capital of France?")
-  print(response)
-  ```
-  2. ```invoke``` – Use when working with templates, chains, or structured workflows.
-  ```python
-  response = llm.invoke({"country": "France"})
-  print(response.content)
-  ```
 
 ## Prompt templates(2ways)
 - Prompt Template is like a fill in the blank guide used in generativeAI.
@@ -49,7 +37,7 @@ print(llm.predict(prompt).strip())
 - These templates can be reused and customized by changing certain parts(like fill in the blank) to get result while keeping the overall format same.
 Way 1: Using PromptTemplate object
 ```python
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 # Initialize LLM
 llm = ChatOpenAI(model="gpt-4o-mini")
@@ -66,7 +54,7 @@ print(response.content)
 ```
 Way 2: Using from_template shortcut
 ```python
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(model="gpt-4o-mini")
@@ -81,7 +69,7 @@ print(response.content)
 ## Agents
 - is a core concept that refers to AI system capable of dynamically deciding how to interact with tools,apis,or other components to accomplish the task.
 - Key Features:
-1. Dynamic Decision making
+1. Dynamic Decision-making
 2. Tool usage
 3. Reasoning and execution
 4. Integration
@@ -98,28 +86,18 @@ print(response.content)
 Without tools, agents cannot access real-time information.
 - Example:
 ```python
+from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
-from langchain.agents import create_react_agent
-from langchain.agents import AgentExecutor
-# create LLM
 llm = ChatOpenAI(model="gpt-4o-mini")
-# create tool
 wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-tools = [wiki]
-
-# create agent
-agent = create_react_agent(llm, tools)
-
-# executor
-agent_executor = AgentExecutor(
-    agent=agent,
-    tools=tools,
-    verbose=True
+agent = create_agent(
+    model=llm,
+    tools=[wiki],
 )
-
-agent_executor.invoke({"input": "What is the GDP of the USA?"})
+response = agent.invoke({"messages": [{"role": "user", "content": "What is the GDP of the USA?"}]})
+print(response)
 ```
 
 ## Chain
@@ -127,7 +105,7 @@ agent_executor.invoke({"input": "What is the GDP of the USA?"})
 - Each step takes input, processes it, and passes the result to the next step
 - example:
 ```python
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 llm = ChatOpenAI(model="gpt-4o-mini")
 prompt = PromptTemplate.from_template(
@@ -140,7 +118,7 @@ print(response.content)
 ### Sequential Chain
 - If we want to combine multiple chains in sequence, we can compose them using LCEL instead of the deprecated SimpleSequentialChain.
 ```python
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
 # Initialize LLM
@@ -184,26 +162,6 @@ print(lc_el_result.content)
    - Combine multiple steps into a single chain using |.
    - More concise and clean for sequential pipelines.
    - Input flows automatically from one step to the next.
-   
-### Conversation Chain
-- Conversation chains maintain dialogue context.
-```python
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
-from langchain_openai import ChatOpenAI
-
-llm = ChatOpenAI(model="gpt-4o-mini")
-
-memory = ConversationBufferMemory()
-
-conversation = ConversationChain(
-    llm=llm,
-    memory=memory
-)
-
-conversation.invoke({"input": "Who won the first cricket world cup?"})
-conversation.invoke({"input": "Who was the captain of the winning team?"})
-```
 
 ## Document Loader
 - Document Loader in langchain are tools that help you load and process data from different sources(like text files, PDFs,website or DB)
@@ -220,7 +178,7 @@ conversation.invoke({"input": "Who was the captain of the winning team?"})
   - S3FileLoader → for cloud storage
 
 ```python
-from langchain.document_loaders import TextLoader
+from langchain_community.document_loaders import TextLoader
 # Load a text file
 loader = TextLoader("example.txt")
 documents = loader.load()
@@ -237,52 +195,49 @@ across multiple messages in a session.
   - **ConversationSummaryMemory** : summarize previous interaction into concise format.
   - **ConversationKnowledgeGraphMemory** : build a knowledge graph from the conversion to track relationship between entities.
   - **CombinedMemory** : combines multiple types of memory for more complex scenarios.
+- Conversation memory now works with RunnableWithMessageHistory.
 - Example:
 ```python
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
 from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
+from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.prompts import ChatPromptTemplate
 
-# Initialize LLM
 llm = ChatOpenAI(model="gpt-4o-mini")
 
-# Create memory
-memory = ConversationBufferMemory()
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant."),
+    ("human", "{input}")
+])
 
-# Conversation chain
-conversation = ConversationChain(
-    llm=llm,
-    memory=memory
+chain = prompt | llm
+
+history = InMemoryChatMessageHistory()
+
+chat = RunnableWithMessageHistory(
+    chain,
+    lambda session_id: history,
+    input_messages_key="input"
 )
 
-# Example prompt template
-prompt_template = PromptTemplate(
-    input_variables=["product"],
-    template="What would be a good name for a company that makes {product}?"
+chat.invoke(
+    {"input": "Who won the first cricket world cup?"},
+    config={"configurable": {"session_id": "1"}}
 )
 
-# Run the chain with different products
-response1 = conversation.invoke({"input": prompt_template.format(product="Wine")})
-response2 = conversation.invoke({"input": prompt_template.format(product="Camera")})
+chat.invoke(
+    {"input": "Who was the captain?"},
+    config={"configurable": {"session_id": "1"}}
+)
+```
 
-# Print conversation memory
-print(memory.buffer)
-```
-output:
-```bash
-Human: What would be a good name for a company that makes Wine?
-AI: Vineyard Cellar
-Human: What would be a good name for a company that makes Camera?
-AI: Camera Lumen Technologies
-```
 ## Vector Stores & Embeddings
 - Converts text into numbers (vectors) so LLM can search and compare information easily.
 - Helps LLMs answer questions using real documents (RAG).
 - Example:
 ```python
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
 
 texts = ["This is document 1", "This is document 2"]
 embeddings = OpenAIEmbeddings()
@@ -297,12 +252,23 @@ print(docs[0].page_content)
 - Lets you track what the LLM is doing step by step.
 - Example:
 ```python
-from langchain.callbacks import StdOutCallbackHandler
-from langchain.chains import LLMChain
-
+from langchain_core.callbacks import StdOutCallbackHandler
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+# callback handler
 callback = StdOutCallbackHandler()
-chain = LLMChain(llm=llm, prompt=prompt_template, callbacks=[callback])
-chain.run({"product": "Camera"})
+
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    callbacks=[callback]
+)
+prompt = ChatPromptTemplate.from_template(
+    "Suggest a good name for a company that makes {product}"
+)
+# Runnable pipeline
+chain = prompt | llm
+response = chain.invoke({"product": "Camera"})
+print(response.content)
 ```
 # RAG Pipeline with LangChain
 - Combines a document retriever + LLM to answer questions from real documents.
@@ -331,40 +297,59 @@ chain.run({"product": "Camera"})
 
 - Example:
 ```python
-from langchain.chains import RetrievalQA
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.document_loaders import TextLoader
-from langchain_openai import ChatOpenAI
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_community.document_loaders import TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
-# 1. Load documents
+# Load documents
 loader = TextLoader("example.txt")
 documents = loader.load()
-
-# 2. Embed and store in vector store
+# Split documents into chunks
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50
+)
+docs = splitter.split_documents(documents)
+# Create embeddings and vector store
 embeddings = OpenAIEmbeddings()
-vectorstore = Chroma.from_documents(documents, embedding=embeddings)
-
-# 3. Create retriever
+vectorstore = Chroma.from_documents(docs, embedding=embeddings)
+# Create retriever
 retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
-
-# 4. Create LLM
+# Prompt template
+prompt = ChatPromptTemplate.from_template(
+"""
+Answer the question using the context below.
+Context:
+{context}
+Question:
+{question}
+"""
+)
+# Create LLM
 llm = ChatOpenAI(model="gpt-4o-mini")
-
-# 5. Combine into RAG chain
-qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-
-# 6. Ask a question
-result = qa_chain.run("What is the main topic of example.txt?")
-print(result)
+# Build RAG pipeline
+rag_chain = (
+    {"context": retriever, "question": lambda x: x}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+# Ask a question
+response = rag_chain.invoke("What is the main topic of example.txt?")
+print(response)
 ```
-## Version Compatibility
-| LangChain Version | Code Compatibility | Key Features / Notes |
-|------------------|-----------------|--------------------|
-| <1.0             | Older syntax    | Only `.predict()` available, no `.invoke()`, limited agents and chains, memory features basic |
-| 1.2.10           | Current code    | Uses `langchain_openai` & `langchain`, supports `.predict()` & `.invoke()`, LLMChain + Memory + Callbacks, RAG pipelines, ReAct agents |
-| 2.x+ (future)    | Upcoming        | Possible module/API changes, async improvements in chains & vectorstores, LangGraph integration, updated agent tooling |
+# Modern LangChain Architecture
+Old LangChain
+-------------
+Prompt → LLMChain → Output
+
+Modern LangChain
+----------------
+Prompt | Model | Parser
 
 ---
 Code in this tutorial is compatible with **LangChain v1.2.10**
-py -3.12 -m pip install virtualenv
+- ```py -3.12 -m pip install virtualenv```
